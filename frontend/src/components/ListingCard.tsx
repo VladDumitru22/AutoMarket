@@ -16,7 +16,6 @@ export default function ListingCard({ listing, isFavorited = false, onFavoriteTo
   const [fav, setFav] = useState(isFavorited)
   const [loading, setLoading] = useState(false)
 
-  // Sync if parent updates the prop
   if (isFavorited !== fav && !loading) {
     setFav(isFavorited)
   }
@@ -52,11 +51,11 @@ export default function ListingCard({ listing, isFavorited = false, onFavoriteTo
         {primaryImage ? (
           <img src={primaryImage.ImageURL} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="flex items-center justify-center h-full text-slate-400 text-sm">Fără imagine</div>
+          <div className="flex items-center justify-center h-full text-slate-400 text-sm">No image</div>
         )}
         {listing.StatusID !== 1 && (
           <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-            Vândut
+            Sold
           </span>
         )}
         {user && (
@@ -83,7 +82,7 @@ export default function ListingCard({ listing, isFavorited = false, onFavoriteTo
         <div className="flex gap-3 mt-2 text-xs text-slate-500">
           <span className="flex items-center gap-1"><Gauge size={12} />{listing.Mileage.toLocaleString()} km</span>
           <span className="flex items-center gap-1"><Calendar size={12} />{listing.ManufacturingYear}</span>
-          <span className="flex items-center gap-1"><Zap size={12} />{listing.HorsePower} CP</span>
+          <span className="flex items-center gap-1"><Zap size={12} />{listing.HorsePower} HP</span>
         </div>
       </div>
     </Link>

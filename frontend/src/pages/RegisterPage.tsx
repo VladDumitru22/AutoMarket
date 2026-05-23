@@ -9,9 +9,9 @@ interface PasswordRule {
 }
 
 const PASSWORD_RULES: PasswordRule[] = [
-  { label: 'Cel puțin 8 caractere', test: p => p.length >= 8 },
-  { label: 'O literă mare (A-Z)', test: p => /[A-Z]/.test(p) },
-  { label: 'O cifră (0-9)', test: p => /\d/.test(p) },
+  { label: 'At least 8 characters', test: p => p.length >= 8 },
+  { label: 'One uppercase letter (A-Z)', test: p => /[A-Z]/.test(p) },
+  { label: 'One digit (0-9)', test: p => /\d/.test(p) },
 ]
 
 export default function RegisterPage() {
@@ -36,7 +36,7 @@ export default function RegisterPage() {
       if (Array.isArray(detail)) {
         setError(detail.map((d: any) => d.msg.replace('Value error, ', '')).join('. '))
       } else {
-        setError(detail ?? 'Înregistrare eșuată')
+        setError(detail ?? 'Registration failed')
       }
     } finally {
       setLoading(false)
@@ -46,11 +46,11 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 py-8">
       <div className="bg-white p-8 rounded-xl border border-slate-200 w-full max-w-md">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">Crează cont</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-6">Create an account</h1>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Prenume</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">First name</label>
               <input
                 value={form.first_name}
                 onChange={e => setForm({ ...form, first_name: e.target.value })}
@@ -58,7 +58,7 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nume</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Last name</label>
               <input
                 value={form.last_name}
                 onChange={e => setForm({ ...form, last_name: e.target.value })}
@@ -75,12 +75,12 @@ export default function RegisterPage() {
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="exemplu@email.com"
+              placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Parolă *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Password *</label>
             <input
               type="password"
               required
@@ -113,18 +113,23 @@ export default function RegisterPage() {
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
+          <p className="text-xs text-slate-400">
+            By creating an account you agree to our{' '}
+            <Link to="/terms" className="text-blue-600 hover:underline">Terms &amp; Conditions</Link>.
+          </p>
+
           <button
             type="submit"
             disabled={loading || !passwordValid}
             className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Se creează contul...' : 'Crează cont'}
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 
         <p className="text-sm text-slate-500 mt-4 text-center">
-          Ai deja un cont?{' '}
-          <Link to="/login" className="text-blue-600 hover:underline">Conectează-te</Link>
+          Already have an account?{' '}
+          <Link to="/login" className="text-blue-600 hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

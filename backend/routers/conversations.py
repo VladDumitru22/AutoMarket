@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List
@@ -7,6 +8,7 @@ from models.listing import Listing, CarModel
 from models.user import User
 from schemas.conversation import MessageCreate, MessageOut, ConversationOut, ConversationSummary
 from utils.auth import get_current_user
+from core.ws_manager import manager, fire_notify
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -155,7 +157,7 @@ def get_conversation(
 
 
 @router.post("/{conversation_id}/messages", response_model=MessageOut, status_code=201)
-def send_message(
+async def send_message(
     conversation_id: int,
     data: MessageCreate,
     current_user: User = Depends(get_current_user),
@@ -163,9 +165,9 @@ def send_message(
 ):
     conv = db.query(Conversation).filter(Conversation.ConversationID == conversation_id).first()
     if not conv:
-        raise HTTPException(status_code=404, detail="Nu a fost găsit")
+        raise HTTPException(status_code=404, detail="Not found")
     if current_user.UserID not in (conv.BuyerID, conv.SellerID):
-        raise HTTPException(status_code=403, detail="Acces interzis")
+        raise HTTPException(status_code=403, detail="Forbidden")
 
     msg = Message(ConversationID=conversation_id, SenderID=current_user.UserID, Content=data.content)
     db.add(msg)
@@ -173,6 +175,19 @@ def send_message(
     conv.UpdatedAt = func.now()
     db.commit()
     db.refresh(msg)
+
+    payload = {
+        "type": "message",
+        "MessageID": msg.MessageID,
+        "ConversationID": msg.ConversationID,
+        "SenderID": msg.SenderID,
+        "Content": msg.Content,
+        "SentAt": msg.SentAt.isoformat() if msg.SentAt else None,
+        "IsRead": msg.IsRead,
+    }
+    recipient_id = conv.SellerID if current_user.UserID == conv.BuyerID else conv.BuyerID
+    asyncio.create_task(manager.broadcast_conv(conversation_id, payload))
+    asyncio.create_task(manager.notify_user(recipient_id, {"type": "notification_update"}))
     return msg
 
 
@@ -182,9 +197,11 @@ def mark_messages_read(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    db.query(Message).filter(
+    updated = db.query(Message).filter(
         Message.ConversationID == conversation_id,
         Message.SenderID != current_user.UserID,
         Message.IsRead == False,
     ).update({"IsRead": True})
     db.commit()
+    if updated:
+        fire_notify(current_user.UserID)

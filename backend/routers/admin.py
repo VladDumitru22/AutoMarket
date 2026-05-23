@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List
 from db.session import get_db
-from models.listing import Listing, ListingStatus
+from models.listing import Listing, ListingStatus, CarModel, ListingImage
 from models.report import Report
 from models.user import User
 from schemas.listing import ListingOut
@@ -17,7 +18,77 @@ def get_reports(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return db.query(Report).filter(Report.ReportStatus == "Pending").all()
+    reports = (
+        db.query(Report)
+        .options(
+            joinedload(Report.reporter),
+            joinedload(Report.listing).joinedload(Listing.model).joinedload(CarModel.brand),
+            joinedload(Report.listing).joinedload(Listing.images),
+        )
+        .filter(Report.ReportStatus == "Pending")
+        .order_by(Report.CreatedAt.desc())
+        .all()
+    )
+    result = []
+    for r in reports:
+        reporter_name = None
+        if r.reporter:
+            name = f"{r.reporter.FirstName or ''} {r.reporter.LastName or ''}".strip()
+            reporter_name = name if name else r.reporter.Email
+
+        listing_title = None
+        listing_image = None
+        if r.listing:
+            if r.listing.model:
+                brand = r.listing.model.brand.Name if r.listing.model.brand else ""
+                listing_title = f"{brand} {r.listing.model.Name} {r.listing.ManufacturingYear}".strip()
+            if r.listing.images:
+                primary = next((img for img in r.listing.images if img.IsPrimary), None)
+                listing_image = (primary or r.listing.images[0]).ImageURL
+
+        result.append({
+            "ReportID": r.ReportID,
+            "ListingID": r.ListingID,
+            "MessageID": r.MessageID,
+            "ReporterID": r.ReporterID,
+            "Reason": r.Reason,
+            "ReportStatus": r.ReportStatus,
+            "CreatedAt": r.CreatedAt,
+            "reporter_name": reporter_name,
+            "listing_title": listing_title,
+            "listing_image": listing_image,
+        })
+    return result
+
+
+@router.get("/stats")
+def get_admin_stats(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    pending_reports = (
+        db.query(func.count(Report.ReportID))
+        .filter(Report.ReportStatus == "Pending")
+        .scalar() or 0
+    )
+    total_users = (
+        db.query(func.count(User.UserID))
+        .filter(User.RoleID != 3)
+        .scalar() or 0
+    )
+    active_status = db.query(ListingStatus).filter(ListingStatus.StatusName == "Active").first()
+    active_listings = 0
+    if active_status:
+        active_listings = (
+            db.query(func.count(Listing.ListingID))
+            .filter(Listing.StatusID == active_status.StatusID)
+            .scalar() or 0
+        )
+    return {
+        "pending_reports": pending_reports,
+        "total_users": total_users,
+        "active_listings": active_listings,
+    }
 
 
 @router.post("/reports/{report_id}/resolve", response_model=ReportOut)

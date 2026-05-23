@@ -5,6 +5,7 @@ from db.session import get_db
 from models.conversation import Conversation, Message
 from models.offer import Offer
 from models.listing import Listing
+from models.report import Report
 from models.user import User
 from utils.auth import get_current_user
 
@@ -48,9 +49,18 @@ def get_notification_count(
         .scalar() or 0
     )
 
+    pending_reports = 0
+    if current_user.RoleID == 3:
+        pending_reports = (
+            db.query(func.count(Report.ReportID))
+            .filter(Report.ReportStatus == "Pending")
+            .scalar() or 0
+        )
+
     return {
         "unread_messages": unread_messages,
         "pending_offers": pending_offers,
         "counter_offers": counter_offers,
-        "total": unread_messages + pending_offers + counter_offers,
+        "pending_reports": pending_reports,
+        "total": unread_messages + pending_offers + counter_offers + pending_reports,
     }

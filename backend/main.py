@@ -1,11 +1,13 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
+from core.ws_manager import set_main_loop
 from db.session import Base, engine
 import models  # noqa: F401 — registers all ORM models with Base
 
 from routers import auth, listings, offers, conversations, favorites, reports, admin
-from routers import notifications, upload
+from routers import notifications, upload, ws
 
 Base.metadata.create_all(bind=engine)
 
@@ -28,6 +30,12 @@ app.include_router(reports.router)
 app.include_router(admin.router)
 app.include_router(notifications.router)
 app.include_router(upload.router)
+app.include_router(ws.router)
+
+
+@app.on_event("startup")
+async def on_startup():
+    set_main_loop(asyncio.get_running_loop())
 
 
 @app.get("/")

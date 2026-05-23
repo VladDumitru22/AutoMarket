@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   getMyConversations, getConversation, sendMessage, markRead,
@@ -17,7 +17,7 @@ function UnreadDot({ count }: { count: number }) {
 }
 
 export default function MessagesPage() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const navigate = useNavigate()
   const { conversationId } = useParams<{ conversationId?: string }>()
 
@@ -26,37 +26,89 @@ export default function MessagesPage() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const seenIds = useRef<Set<number>>(new Set())
+  // Stable ref to current user ID to avoid stale closures in WS handler
+  const userIdRef = useRef<number | undefined>(user?.UserID)
+  useEffect(() => { userIdRef.current = user?.UserID }, [user])
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
     loadConversations()
+    return () => wsRef.current?.close()
   }, [user])
 
   useEffect(() => {
-    if (conversationId) {
-      loadConversation(Number(conversationId))
-    }
+    if (conversationId) loadConversation(Number(conversationId))
   }, [conversationId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [active?.messages.length])
 
+  const openWebSocket = useCallback((convId: number) => {
+    wsRef.current?.close()
+    if (!token) return
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/conversations/${convId}?token=${token}`)
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (
+          data.type === 'message' &&
+          data.SenderID !== userIdRef.current &&   // skip own messages (they come from HTTP response)
+          !seenIds.current.has(data.MessageID)     // dedup guard
+        ) {
+          seenIds.current.add(data.MessageID)
+          const msg: Message = {
+            MessageID: data.MessageID,
+            ConversationID: data.ConversationID,
+            SenderID: data.SenderID,
+            Content: data.Content,
+            SentAt: data.SentAt,
+            IsRead: data.IsRead,
+          }
+          setActive(prev =>
+            prev?.ConversationID === convId
+              ? { ...prev, messages: [...prev.messages, msg] }
+              : prev
+          )
+          setConversations(prev =>
+            prev.map(c => c.ConversationID === convId
+              ? { ...c, last_message: msg.Content }
+              : c
+            )
+          )
+          // Mark as read immediately so Navbar notification count stays accurate
+          markRead(convId)
+        }
+      } catch { /* ignore malformed frames */ }
+    }
+
+    ws.onerror = () => ws.close()
+    wsRef.current = ws
+  }, [token])
+
   const loadConversations = async () => {
     const convs = await getMyConversations()
     setConversations(convs)
-    if (conversationId) {
-      loadConversation(Number(conversationId))
-    }
+    if (conversationId) loadConversation(Number(conversationId))
   }
 
   const loadConversation = async (id: number) => {
+    wsRef.current?.close()
+    seenIds.current.clear()
+
     const full = await getConversation(id)
+    full.messages.forEach(m => seenIds.current.add(m.MessageID))
     setActive(full)
     markRead(id)
     setConversations(prev =>
       prev.map(c => c.ConversationID === id ? { ...c, unread_count: 0 } : c)
     )
+    openWebSocket(id)
   }
 
   const handleSend = async () => {
@@ -64,6 +116,8 @@ export default function MessagesPage() {
     setSending(true)
     try {
       const msg = await sendMessage(active.ConversationID, input.trim())
+      // Add to seenIds first so the WS echo (if it races ahead) is ignored
+      seenIds.current.add(msg.MessageID)
       setActive(prev => prev ? { ...prev, messages: [...prev.messages, msg] } : prev)
       setInput('')
     } finally {
@@ -73,7 +127,7 @@ export default function MessagesPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Mesaje</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">Messages</h1>
 
       <div className="flex h-[600px] bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         {/* Conversation list */}
@@ -81,7 +135,7 @@ export default function MessagesPage() {
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm gap-2">
               <Car size={32} className="text-slate-300" />
-              <p>Nicio conversație</p>
+              <p>No conversations</p>
             </div>
           ) : (
             conversations.map(conv => (
@@ -120,11 +174,10 @@ export default function MessagesPage() {
           {!active ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2">
               <Car size={40} className="text-slate-300" />
-              <p className="text-sm">Selectează o conversație</p>
+              <p className="text-sm">Select a conversation</p>
             </div>
           ) : (
             <>
-              {/* Chat header */}
               <div className="border-b border-slate-200 px-5 py-3 bg-white">
                 <div className="flex items-center gap-2">
                   <Car size={16} className="text-blue-500" />
@@ -136,11 +189,10 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50">
                 {active.messages.length === 0 && (
                   <div className="text-center text-sm text-slate-400 py-8">
-                    Niciun mesaj. Fii primul care scrie!
+                    No messages yet. Be the first to write!
                   </div>
                 )}
                 {active.messages.map((msg: Message) => {
@@ -157,7 +209,7 @@ export default function MessagesPage() {
                         <p className="break-words">{msg.Content}</p>
                         {msg.SentAt && (
                           <p className={`text-[10px] mt-1 ${isMine ? 'text-blue-200' : 'text-slate-400'}`}>
-                            {new Date(msg.SentAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.SentAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         )}
                       </div>
@@ -167,13 +219,12 @@ export default function MessagesPage() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Input */}
               <div className="border-t border-slate-200 p-3 bg-white flex gap-2">
                 <input
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                  placeholder="Scrie un mesaj..."
+                  placeholder="Write a message…"
                   className="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button

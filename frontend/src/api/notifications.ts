@@ -4,6 +4,7 @@ export interface NotificationCount {
   unread_messages: number
   pending_offers: number
   counter_offers: number
+  pending_reports: number
   total: number
 }
 

@@ -79,15 +79,15 @@ export default function HomePage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Găsește mașina ta</h1>
-        <p className="text-slate-500">Caută printre mii de anunțuri verificate</p>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Find your car</h1>
+        <p className="text-slate-500">Search thousands of verified listings</p>
       </div>
 
       {/* Filters */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 mb-8">
         <div className="flex items-center gap-2 mb-4 text-slate-700 font-medium text-sm">
           <SlidersHorizontal size={16} />
-          Filtre de căutare
+          Search filters
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
           <select
@@ -95,7 +95,7 @@ export default function HomePage() {
             onChange={e => setFilters({ ...filters, brand_id: e.target.value, model_id: '' })}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
           >
-            <option value="">Toate mărcile</option>
+            <option value="">All brands</option>
             {brands.map(b => <option key={b.BrandID} value={b.BrandID}>{b.Name}</option>)}
           </select>
 
@@ -105,12 +105,12 @@ export default function HomePage() {
             disabled={!filters.brand_id}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
           >
-            <option value="">Toate modelele</option>
+            <option value="">All models</option>
             {models.map(m => <option key={m.ModelID} value={m.ModelID}>{m.Name}</option>)}
           </select>
 
           <input
-            placeholder="Preț minim (€)"
+            placeholder="Min price (€)"
             value={filters.min_price}
             onChange={e => setFilters({ ...filters, min_price: e.target.value })}
             type="number"
@@ -119,7 +119,7 @@ export default function HomePage() {
           />
 
           <input
-            placeholder="Preț maxim (€)"
+            placeholder="Max price (€)"
             value={filters.max_price}
             onChange={e => setFilters({ ...filters, max_price: e.target.value })}
             type="number"
@@ -128,7 +128,7 @@ export default function HomePage() {
           />
 
           <input
-            placeholder="An de la"
+            placeholder="Year from"
             value={filters.year_from}
             onChange={e => setFilters({ ...filters, year_from: e.target.value })}
             type="number"
@@ -138,7 +138,7 @@ export default function HomePage() {
           />
 
           <input
-            placeholder="An până la"
+            placeholder="Year to"
             value={filters.year_to}
             onChange={e => setFilters({ ...filters, year_to: e.target.value })}
             type="number"
@@ -148,7 +148,7 @@ export default function HomePage() {
           />
 
           <input
-            placeholder="Cuvânt cheie..."
+            placeholder="Keyword..."
             value={filters.keyword}
             onChange={e => setFilters({ ...filters, keyword: e.target.value })}
             onKeyDown={e => { if (e.key === 'Enter') fetchListings() }}
@@ -161,13 +161,13 @@ export default function HomePage() {
             onClick={fetchListings}
             className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
           >
-            <Search size={16} /> Caută
+            <Search size={16} /> Search
           </button>
           <button
             onClick={reset}
             className="px-5 py-2 rounded-lg text-sm font-medium border border-slate-300 hover:bg-slate-50"
           >
-            Resetează
+            Reset
           </button>
         </div>
       </div>
@@ -175,7 +175,7 @@ export default function HomePage() {
       {/* Results */}
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm text-slate-500">
-          {loading ? 'Se caută...' : `${listings.length} anunț${listings.length !== 1 ? 'uri' : ''} găsite`}
+          {loading ? 'Searching…' : `${listings.length} listing${listings.length !== 1 ? 's' : ''} found`}
         </span>
       </div>
 
@@ -194,10 +194,10 @@ export default function HomePage() {
         </div>
       ) : listings.length === 0 ? (
         <div className="text-center text-slate-500 py-16 bg-white rounded-xl border border-slate-200">
-          <p className="text-lg font-medium">Niciun anunț găsit</p>
-          <p className="text-sm mt-1">Încearcă să resetezi filtrele</p>
+          <p className="text-lg font-medium">No listings found</p>
+          <p className="text-sm mt-1">Try resetting the filters</p>
           <button onClick={reset} className="mt-4 text-blue-600 text-sm hover:underline">
-            Resetează filtrele
+            Reset filters
           </button>
         </div>
       ) : (

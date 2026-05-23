@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
+from decimal import Decimal
 from db.session import get_db
 from models.offer import Offer
-from models.listing import Listing
+from models.listing import Listing, CarModel
 from models.user import User
 from schemas.offer import OfferCreate, CounterOfferCreate, OfferOut
 from utils.auth import get_current_user
+from core.ws_manager import fire_notify
 
 router = APIRouter(prefix="/offers", tags=["offers"])
 
@@ -42,6 +44,7 @@ def place_offer(
     db.add(offer)
     db.commit()
     db.refresh(offer)
+    fire_notify(listing.SellerID)  # notify seller: new pending offer
     return offer
 
 
@@ -64,7 +67,91 @@ def get_my_offers(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return db.query(Offer).filter(Offer.BuyerID == current_user.UserID).order_by(Offer.OfferDate.desc()).all()
+    offers = (
+        db.query(Offer)
+        .options(joinedload(Offer.listing).joinedload(Listing.model).joinedload(CarModel.brand))
+        .filter(Offer.BuyerID == current_user.UserID)
+        .order_by(Offer.OfferDate.desc())
+        .all()
+    )
+    result = []
+    for o in offers:
+        listing = o.listing
+        title = None
+        price = None
+        if listing and listing.model:
+            brand = listing.model.brand.Name if listing.model.brand else ""
+            title = f"{brand} {listing.model.Name} {listing.ManufacturingYear}".strip()
+            price = listing.Price
+        result.append({
+            "OfferID": o.OfferID,
+            "ListingID": o.ListingID,
+            "BuyerID": o.BuyerID,
+            "OfferedAmount": o.OfferedAmount,
+            "OfferDate": o.OfferDate,
+            "IsAccepted": o.IsAccepted,
+            "OfferStatus": o.OfferStatus,
+            "CounterAmount": o.CounterAmount,
+            "listing_title": title,
+            "listing_price": price,
+            "buyer_name": None,
+        })
+    return result
+
+
+@router.get("/received", response_model=List[OfferOut])
+def get_received_offers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from models.user import User as UserModel
+    my_listing_ids = [
+        row[0] for row in
+        db.query(Listing.ListingID).filter(Listing.SellerID == current_user.UserID).all()
+    ]
+    if not my_listing_ids:
+        return []
+    offers = (
+        db.query(Offer)
+        .options(
+            joinedload(Offer.listing).joinedload(Listing.model).joinedload(CarModel.brand),
+            joinedload(Offer.buyer),
+        )
+        .filter(
+            Offer.ListingID.in_(my_listing_ids),
+            Offer.OfferStatus.in_(["Pending", "Countered"]),
+        )
+        .order_by(Offer.OfferDate.desc())
+        .all()
+    )
+    result = []
+    for o in offers:
+        listing = o.listing
+        buyer = o.buyer
+        title = None
+        price = None
+        if listing and listing.model:
+            brand = listing.model.brand.Name if listing.model.brand else ""
+            title = f"{brand} {listing.model.Name} {listing.ManufacturingYear}".strip()
+            price = listing.Price
+        buyer_name = None
+        if buyer:
+            name = f"{buyer.FirstName or ''} {buyer.LastName or ''}".strip()
+            buyer_name = name if name else buyer.Email
+        result.append({
+            "OfferID": o.OfferID,
+            "ListingID": o.ListingID,
+            "BuyerID": o.BuyerID,
+            "OfferedAmount": o.OfferedAmount,
+            "OfferDate": o.OfferDate,
+            "IsAccepted": o.IsAccepted,
+            "OfferStatus": o.OfferStatus,
+            "CounterAmount": o.CounterAmount,
+            "listing_title": title,
+            "listing_price": price,
+            "buyer_name": buyer_name,
+        })
+    return result
 
 
 @router.post("/{offer_id}/accept", response_model=OfferOut)
@@ -83,6 +170,7 @@ def accept_offer(
     offer.OfferStatus = "Accepted"
     db.commit()
     db.refresh(offer)
+    fire_notify(offer.BuyerID)  # notify buyer: offer accepted
     return offer
 
 
@@ -103,6 +191,7 @@ def reject_offer(
     offer.OfferStatus = "Rejected"
     db.commit()
     db.refresh(offer)
+    fire_notify(offer.BuyerID)  # notify buyer: offer rejected
     return offer
 
 
@@ -125,6 +214,7 @@ def counter_offer(
     offer.CounterAmount = data.counter_amount
     db.commit()
     db.refresh(offer)
+    fire_notify(offer.BuyerID)  # notify buyer: counter offer received
     return offer
 
 
@@ -145,6 +235,10 @@ def accept_counter(
     offer.IsAccepted = True
     db.commit()
     db.refresh(offer)
+    # notify seller that buyer accepted the counter
+    listing = db.query(Listing).filter(Listing.ListingID == offer.ListingID).first()
+    if listing:
+        fire_notify(listing.SellerID)
     return offer
 
 
@@ -164,4 +258,8 @@ def reject_counter(
     offer.OfferStatus = "Rejected"
     db.commit()
     db.refresh(offer)
+    # notify seller that buyer rejected the counter
+    listing = db.query(Listing).filter(Listing.ListingID == offer.ListingID).first()
+    if listing:
+        fire_notify(listing.SellerID)
     return offer

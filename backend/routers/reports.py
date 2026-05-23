@@ -5,6 +5,7 @@ from models.report import Report
 from models.user import User
 from schemas.report import ReportCreate, ReportOut
 from utils.auth import get_current_user
+from core.ws_manager import fire_notify
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -27,4 +28,9 @@ def create_report(
     db.add(report)
     db.commit()
     db.refresh(report)
+
+    admin_users = db.query(User).filter(User.RoleID == 3).all()
+    for admin in admin_users:
+        fire_notify(admin.UserID)
+
     return report

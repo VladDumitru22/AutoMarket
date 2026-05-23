@@ -17,5 +17,8 @@ class ReportOut(BaseModel):
     Reason: str
     ReportStatus: str
     CreatedAt: Optional[datetime]
+    reporter_name: Optional[str] = None
+    listing_title: Optional[str] = None
+    listing_image: Optional[str] = None
 
     model_config = {"from_attributes": True}

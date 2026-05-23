@@ -35,5 +35,8 @@ class OfferOut(BaseModel):
     IsAccepted: bool
     OfferStatus: Optional[str] = "Pending"
     CounterAmount: Optional[Decimal] = None
+    listing_title: Optional[str] = None
+    listing_price: Optional[Decimal] = None
+    buyer_name: Optional[str] = None
 
     model_config = {"from_attributes": True}

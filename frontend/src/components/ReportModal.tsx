@@ -3,12 +3,12 @@ import { X, Flag } from 'lucide-react'
 import api from '../api/client'
 
 const REASONS = [
-  'Anunț fals / fraudulos',
-  'Preț înșelător',
-  'Informații tehnice incorecte',
-  'Imagini care nu corespund realității',
-  'Vehicul deja vândut',
-  'Altul',
+  'Fraudulent / fake listing',
+  'Misleading price',
+  'Incorrect technical information',
+  'Photos do not match the vehicle',
+  'Vehicle already sold',
+  'Other',
 ]
 
 interface Props {
@@ -26,7 +26,7 @@ export default function ReportModal({ listingId, onClose }: Props) {
     if (!selected) return
     setLoading(true)
     try {
-      const reason = selected === 'Altul' ? details || 'Altul' : `${selected}${details ? ': ' + details : ''}`
+      const reason = selected === 'Other' ? details || 'Other' : `${selected}${details ? ': ' + details : ''}`
       await api.post('/reports', { listing_id: listingId, reason })
       setDone(true)
     } finally {
@@ -40,7 +40,7 @@ export default function ReportModal({ listingId, onClose }: Props) {
         <div className="flex items-center justify-between p-5 border-b border-slate-200">
           <div className="flex items-center gap-2 text-slate-900 font-semibold">
             <Flag size={18} className="text-red-500" />
-            Raportează anunțul
+            Report listing
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X size={20} />
@@ -50,15 +50,15 @@ export default function ReportModal({ listingId, onClose }: Props) {
         {done ? (
           <div className="p-6 text-center">
             <div className="text-green-500 text-4xl mb-3">✓</div>
-            <p className="font-medium text-slate-900">Raport trimis</p>
-            <p className="text-sm text-slate-500 mt-1">Echipa noastră va analiza anunțul în curând.</p>
+            <p className="font-medium text-slate-900">Report submitted</p>
+            <p className="text-sm text-slate-500 mt-1">Our team will review the listing shortly.</p>
             <button onClick={onClose} className="mt-4 bg-slate-900 text-white px-6 py-2 rounded-lg text-sm">
-              Închide
+              Close
             </button>
           </div>
         ) : (
           <div className="p-5 space-y-4">
-            <p className="text-sm text-slate-600">Selectează motivul raportării:</p>
+            <p className="text-sm text-slate-600">Select a reason for reporting:</p>
             <div className="space-y-2">
               {REASONS.map(r => (
                 <button
@@ -76,26 +76,26 @@ export default function ReportModal({ listingId, onClose }: Props) {
             </div>
             <div>
               <label className="block text-sm text-slate-600 mb-1">
-                {selected === 'Altul' ? 'Descrie problema *' : 'Detalii suplimentare (opțional)'}
+                {selected === 'Other' ? 'Describe the issue *' : 'Additional details (optional)'}
               </label>
               <textarea
                 rows={3}
                 value={details}
                 onChange={e => setDetails(e.target.value)}
-                placeholder="Adaugă mai multe detalii..."
+                placeholder="Add more details…"
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex gap-2 pt-1">
               <button
                 onClick={submit}
-                disabled={!selected || loading || (selected === 'Altul' && !details)}
+                disabled={!selected || loading || (selected === 'Other' && !details)}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-40"
               >
-                {loading ? 'Se trimite...' : 'Trimite raport'}
+                {loading ? 'Sending…' : 'Submit report'}
               </button>
               <button onClick={onClose} className="px-5 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50">
-                Anulează
+                Cancel
               </button>
             </div>
           </div>

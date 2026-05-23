@@ -9,6 +9,9 @@ export interface Offer {
   IsAccepted: boolean
   OfferStatus: 'Pending' | 'Accepted' | 'Rejected' | 'Countered'
   CounterAmount: string | null
+  listing_title: string | null
+  listing_price: string | null
+  buyer_name: string | null
 }
 
 export const placeOffer = (listing_id: number, offered_amount: number) =>
@@ -19,6 +22,9 @@ export const getListingOffers = (listing_id: number) =>
 
 export const getMyOffers = () =>
   api.get<Offer[]>('/offers/mine').then(r => r.data)
+
+export const getReceivedOffers = () =>
+  api.get<Offer[]>('/offers/received').then(r => r.data)
 
 export const acceptOffer = (offer_id: number) =>
   api.post<Offer>(`/offers/${offer_id}/accept`).then(r => r.data)

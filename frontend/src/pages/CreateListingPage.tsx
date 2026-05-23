@@ -70,7 +70,7 @@ export default function CreateListingPage() {
     const files = Array.from(e.target.files || [])
     const remaining = 5 - images.length
     if (files.length > remaining) {
-      setError(`Poți adăuga maximum 5 imagini (mai ai loc pentru ${remaining})`)
+      setError(`You can add up to 5 photos (${remaining} slot${remaining !== 1 ? 's' : ''} remaining)`)
       return
     }
     setError('')
@@ -99,13 +99,12 @@ export default function CreateListingPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.price || !form.model_id) { setError('Prețul și modelul sunt obligatorii'); return }
-    if (Number(form.price) <= 0) { setError('Prețul trebuie să fie pozitiv'); return }
+    if (!form.price || !form.model_id) { setError('Price and model are required'); return }
+    if (Number(form.price) <= 0) { setError('Price must be positive'); return }
     setLoading(true)
     setError('')
 
     try {
-      // Upload new files to Cloudinary
       const newFiles = images.filter(img => img.file).map(img => img.file!)
       let uploadedUrls: string[] = []
 
@@ -114,7 +113,7 @@ export default function CreateListingPage() {
         try {
           uploadedUrls = await uploadImages(newFiles)
         } catch (err: any) {
-          setError(err?.response?.data?.detail ?? 'Eroare la încărcarea imaginilor')
+          setError(err?.response?.data?.detail ?? 'Error uploading images')
           setLoading(false)
           setUploading(false)
           return
@@ -122,7 +121,6 @@ export default function CreateListingPage() {
         setUploading(false)
       }
 
-      // Build final URL list preserving primary order
       let urlIndex = 0
       const finalImages: { url: string; isPrimary: boolean }[] = images.map(img => {
         if (img.file) {
@@ -131,13 +129,10 @@ export default function CreateListingPage() {
         return { url: img.uploaded!, isPrimary: img.isPrimary }
       })
 
-      // Primary first
       const sortedUrls = [
         ...finalImages.filter(i => i.isPrimary),
         ...finalImages.filter(i => !i.isPrimary),
       ].map(i => i.url)
-
-      const primaryIndex = 0
 
       const payload = {
         model_id: Number(form.model_id),
@@ -147,7 +142,7 @@ export default function CreateListingPage() {
         horse_power: Number(form.horse_power),
         description: form.description,
         image_urls: sortedUrls,
-        primary_image_index: primaryIndex,
+        primary_image_index: 0,
       }
 
       if (isEdit && id) {
@@ -162,7 +157,7 @@ export default function CreateListingPage() {
       if (Array.isArray(detail)) {
         setError(detail.map((d: any) => d.msg.replace('Value error, ', '')).join('. '))
       } else {
-        setError(detail ?? 'Salvare eșuată')
+        setError(detail ?? 'Save failed')
       }
     } finally {
       setLoading(false)
@@ -172,14 +167,14 @@ export default function CreateListingPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">
-        {isEdit ? 'Editează anunțul' : 'Anunț nou'}
+        {isEdit ? 'Edit listing' : 'New listing'}
       </h1>
 
       <form onSubmit={submit} className="space-y-6">
         {/* Images */}
         <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <h2 className="font-semibold text-slate-900 mb-1">Fotografii</h2>
-          <p className="text-xs text-slate-500 mb-4">Maximum 3 fotografii · Click pe steluță pentru a seta imaginea principală</p>
+          <h2 className="font-semibold text-slate-900 mb-1">Photos</h2>
+          <p className="text-xs text-slate-500 mb-4">Up to 5 photos · Click the star to set the cover photo</p>
 
           <div className="flex gap-3 flex-wrap">
             {images.map((img, i) => (
@@ -190,7 +185,7 @@ export default function CreateListingPage() {
                     type="button"
                     onClick={() => setPrimary(i)}
                     className="p-1 bg-white/90 rounded-full"
-                    title="Setează ca principală"
+                    title="Set as cover"
                   >
                     {img.isPrimary
                       ? <Star size={14} className="fill-yellow-400 text-yellow-400" />
@@ -207,7 +202,7 @@ export default function CreateListingPage() {
                 </div>
                 {img.isPrimary && (
                   <span className="absolute bottom-0 left-0 right-0 bg-blue-500 text-white text-[10px] text-center py-0.5">
-                    Principală
+                    Cover
                   </span>
                 )}
               </div>
@@ -220,7 +215,7 @@ export default function CreateListingPage() {
                 className="w-28 h-24 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-blue-500 transition-colors"
               >
                 <ImagePlus size={20} />
-                <span className="text-xs">Adaugă</span>
+                <span className="text-xs">Add photo</span>
               </button>
             )}
           </div>
@@ -236,24 +231,24 @@ export default function CreateListingPage() {
 
           {uploading && (
             <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
-              <Upload size={12} /> Se încarcă imaginile...
+              <Upload size={12} /> Uploading images…
             </p>
           )}
         </div>
 
         {/* Car details */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-          <h2 className="font-semibold text-slate-900">Detalii vehicul</h2>
+          <h2 className="font-semibold text-slate-900">Vehicle details</h2>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Marcă</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Brand</label>
               <select
                 value={brandId}
                 onChange={e => { setBrandId(e.target.value); setForm({ ...form, model_id: '' }) }}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
               >
-                <option value="">Selectează marca</option>
+                <option value="">Select brand</option>
                 {brands.map(b => <option key={b.BrandID} value={b.BrandID}>{b.Name}</option>)}
               </select>
             </div>
@@ -266,7 +261,7 @@ export default function CreateListingPage() {
                 disabled={!brandId}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
               >
-                <option value="">Selectează modelul</option>
+                <option value="">Select model</option>
                 {models.map(m => <option key={m.ModelID} value={m.ModelID}>{m.Name}</option>)}
               </select>
             </div>
@@ -274,7 +269,7 @@ export default function CreateListingPage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">An fabricație *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Year *</label>
               <input
                 type="number"
                 required
@@ -287,7 +282,7 @@ export default function CreateListingPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Preț (€) *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Price (€) *</label>
               <input
                 type="number"
                 required
@@ -299,7 +294,7 @@ export default function CreateListingPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Kilometraj *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Mileage (km) *</label>
               <input
                 type="number"
                 required
@@ -313,7 +308,7 @@ export default function CreateListingPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Putere (CP) *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Power (HP) *</label>
             <input
               type="number"
               required
@@ -326,12 +321,12 @@ export default function CreateListingPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Descriere</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
             <textarea
               rows={4}
               value={form.description}
               onChange={e => setForm({ ...form, description: e.target.value })}
-              placeholder="Descrie starea mașinii, dotările, istoricul de service..."
+              placeholder="Describe the car's condition, features, service history…"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none"
             />
           </div>
@@ -349,14 +344,14 @@ export default function CreateListingPage() {
             disabled={loading}
             className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? (uploading ? 'Se încarcă imaginile...' : 'Se salvează...') : (isEdit ? 'Salvează modificările' : 'Publică anunțul')}
+            {loading ? (uploading ? 'Uploading images…' : 'Saving…') : (isEdit ? 'Save changes' : 'Publish listing')}
           </button>
           <button
             type="button"
             onClick={() => navigate(-1)}
             className="px-6 py-3 border border-slate-300 rounded-xl font-medium hover:bg-slate-50"
           >
-            Anulează
+            Cancel
           </button>
         </div>
       </form>
