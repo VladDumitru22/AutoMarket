@@ -11,6 +11,15 @@ from utils.auth import get_current_user
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
 
+@router.get("/ids")
+def get_favorite_ids(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    favs = db.query(Favorite).filter(Favorite.UserID == current_user.UserID).all()
+    return {"ids": [f.ListingID for f in favs]}
+
+
 @router.get("", response_model=List[ListingOut])
 def get_favorites(
     current_user: User = Depends(get_current_user),

@@ -1,7 +1,7 @@
 import api from './client'
 
 export interface Brand { BrandID: number; Name: string }
-export interface CarModel { ModelID: number; BrandID: number; Name: string }
+export interface CarModel { ModelID: number; BrandID: number; Name: string; brand?: Brand }
 export interface ListingImage { ImageID: number; ImageURL: string; IsPrimary: boolean }
 export interface Listing {
   ListingID: number

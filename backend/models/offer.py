@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, Numeric, DateTime, Boolean
+from sqlalchemy import Column, Integer, ForeignKey, Numeric, DateTime, Boolean, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from db.session import Base
@@ -13,6 +13,9 @@ class Offer(Base):
     OfferedAmount = Column(Numeric(18, 2), nullable=False)
     OfferDate = Column(DateTime, server_default=func.now())
     IsAccepted = Column(Boolean, default=False)
+    # Pending | Accepted | Rejected | Countered
+    OfferStatus = Column(String(20), default="Pending", server_default="Pending")
+    CounterAmount = Column(Numeric(18, 2), nullable=True)
 
     listing = relationship("Listing", back_populates="offers")
     buyer = relationship("User", back_populates="offers")

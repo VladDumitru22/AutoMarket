@@ -5,6 +5,7 @@ from db.session import Base, engine
 import models  # noqa: F401 — registers all ORM models with Base
 
 from routers import auth, listings, offers, conversations, favorites, reports, admin
+from routers import notifications, upload
 
 Base.metadata.create_all(bind=engine)
 
@@ -25,6 +26,8 @@ app.include_router(conversations.router)
 app.include_router(favorites.router)
 app.include_router(reports.router)
 app.include_router(admin.router)
+app.include_router(notifications.router)
+app.include_router(upload.router)
 
 
 @app.get("/")

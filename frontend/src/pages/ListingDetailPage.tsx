@@ -2,12 +2,39 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getListing, markSold, deleteListing } from '../api/listings'
 import type { Listing } from '../api/listings'
-import { placeOffer, getListingOffers, acceptOffer } from '../api/offers'
+import {
+  placeOffer, getListingOffers, acceptOffer, rejectOffer,
+  counterOffer, acceptCounter, rejectCounter, getMyOffers,
+} from '../api/offers'
 import type { Offer } from '../api/offers'
 import { startConversation } from '../api/conversations'
 import { addFavorite, removeFavorite } from '../api/favorites'
 import { useAuth } from '../context/AuthContext'
-import { Heart, MessageSquare, Gauge, Calendar, Zap, Trash2, CheckCircle } from 'lucide-react'
+import {
+  Heart, MessageSquare, Gauge, Calendar, Zap, Trash2, CheckCircle,
+  ChevronRight, AlertCircle, Flag,
+} from 'lucide-react'
+import ReportModal from '../components/ReportModal'
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    Pending: 'bg-amber-100 text-amber-700',
+    Accepted: 'bg-green-100 text-green-700',
+    Rejected: 'bg-red-100 text-red-700',
+    Countered: 'bg-purple-100 text-purple-700',
+  }
+  const labels: Record<string, string> = {
+    Pending: 'În așteptare',
+    Accepted: 'Acceptată',
+    Rejected: 'Respinsă',
+    Countered: 'Contraofertă',
+  }
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[status] ?? 'bg-slate-100 text-slate-600'}`}>
+      {labels[status] ?? status}
+    </span>
+  )
+}
 
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -16,13 +43,20 @@ export default function ListingDetailPage() {
 
   const [listing, setListing] = useState<Listing | null>(null)
   const [offers, setOffers] = useState<Offer[]>([])
+  const [myOffer, setMyOffer] = useState<Offer | null>(null)
   const [offerAmount, setOfferAmount] = useState('')
+  const [counterInput, setCounterInput] = useState<{ [id: number]: string }>({})
+  const [showCounterInput, setShowCounterInput] = useState<number | null>(null)
   const [fav, setFav] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
   const [soldPrice, setSoldPrice] = useState('')
   const [showSoldModal, setShowSoldModal] = useState(false)
+  const [showReport, setShowReport] = useState(false)
+  const [offerError, setOfferError] = useState('')
+  const [offerLoading, setOfferLoading] = useState(false)
 
   const isSeller = user && listing && user.UserID === listing.SellerID
+  const isActive = listing?.StatusID === 1
 
   useEffect(() => {
     if (!id) return
@@ -30,19 +64,44 @@ export default function ListingDetailPage() {
   }, [id])
 
   useEffect(() => {
-    if (isSeller && listing) {
+    if (!listing) return
+    if (isSeller) {
       getListingOffers(listing.ListingID).then(setOffers).catch(() => {})
+    } else if (user) {
+      getMyOffers()
+        .then(all => {
+          const mine = all.find(o => o.ListingID === listing.ListingID)
+          setMyOffer(mine ?? null)
+        })
+        .catch(() => {})
     }
-  }, [isSeller, listing])
+  }, [listing, user])
 
-  if (!listing) return <div className="text-center py-20 text-slate-500">Loading...</div>
+  if (!listing) return (
+    <div className="max-w-6xl mx-auto px-4 py-20 text-center text-slate-500">
+      <div className="animate-pulse space-y-4">
+        <div className="h-80 bg-slate-200 rounded-xl" />
+      </div>
+    </div>
+  )
 
   const handleOffer = async () => {
     if (!user) { navigate('/login'); return }
-    if (!offerAmount) return
-    await placeOffer(listing.ListingID, Number(offerAmount))
-    setOfferAmount('')
-    alert('Offer placed successfully!')
+    if (!offerAmount || Number(offerAmount) <= 0) {
+      setOfferError('Introdu o sumă validă')
+      return
+    }
+    setOfferError('')
+    setOfferLoading(true)
+    try {
+      const o = await placeOffer(listing.ListingID, Number(offerAmount))
+      setMyOffer(o)
+      setOfferAmount('')
+    } catch (err: any) {
+      setOfferError(err?.response?.data?.detail ?? 'Eroare la trimiterea ofertei')
+    } finally {
+      setOfferLoading(false)
+    }
   }
 
   const handleMessage = async () => {
@@ -58,7 +117,7 @@ export default function ListingDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Delete this listing?')) return
+    if (!confirm('Sigur vrei să ștergi acest anunț?')) return
     await deleteListing(listing.ListingID)
     navigate('/my-listings')
   }
@@ -69,148 +128,294 @@ export default function ListingDetailPage() {
     else { await addFavorite(listing.ListingID); setFav(true) }
   }
 
-  const isActive = listing.StatusID === 1
+  const refreshOffers = () => getListingOffers(listing.ListingID).then(setOffers)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Images */}
-        <div className="lg:col-span-2">
-          <div className="bg-slate-100 rounded-xl overflow-hidden h-80 mb-3">
-            {listing.images[activeImage] ? (
-              <img
-                src={listing.images[activeImage].ImageURL}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-slate-400">No image</div>
+        {/* Left: Images + Details */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Image gallery */}
+          <div>
+            <div className="bg-slate-100 rounded-xl overflow-hidden h-80 mb-3">
+              {listing.images[activeImage] ? (
+                <img src={listing.images[activeImage].ImageURL} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400">Fără imagine</div>
+              )}
+            </div>
+            {listing.images.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {listing.images.map((img, i) => (
+                  <button
+                    key={img.ImageID}
+                    onClick={() => setActiveImage(i)}
+                    className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                      i === activeImage ? 'border-blue-500' : 'border-transparent'
+                    }`}
+                  >
+                    <img src={img.ImageURL} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-          {listing.images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
-              {listing.images.map((img, i) => (
-                <button
-                  key={img.ImageID}
-                  onClick={() => setActiveImage(i)}
-                  className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 ${i === activeImage ? 'border-blue-500' : 'border-transparent'}`}
-                >
-                  <img src={img.ImageURL} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
 
-          {/* Details */}
-          <div className="mt-6">
-            <div className="flex items-start justify-between">
+          {/* Details card */}
+          <div className="bg-white border border-slate-200 rounded-xl p-6">
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">
-                  {listing.model?.Name} {listing.ManufacturingYear}
+                  {listing.model?.brand?.Name} {listing.model?.Name} {listing.ManufacturingYear}
                 </h1>
                 {!isActive && (
-                  <span className="inline-block mt-1 bg-red-100 text-red-700 text-sm px-3 py-1 rounded-full">Sold</span>
+                  <span className="inline-block mt-1 bg-red-100 text-red-700 text-sm px-3 py-1 rounded-full">Vândut</span>
                 )}
               </div>
-              <div className="text-2xl font-bold text-blue-600">€{Number(listing.Price).toLocaleString()}</div>
+              <div className="text-2xl font-bold text-blue-600 whitespace-nowrap">
+                €{Number(listing.Price).toLocaleString()}
+              </div>
             </div>
 
-            <div className="flex gap-4 mt-4 text-sm text-slate-600">
-              <span className="flex items-center gap-1.5"><Gauge size={16} />{listing.Mileage.toLocaleString()} km</span>
-              <span className="flex items-center gap-1.5"><Calendar size={16} />{listing.ManufacturingYear}</span>
-              <span className="flex items-center gap-1.5"><Zap size={16} />{listing.HorsePower} HP</span>
+            <div className="flex flex-wrap gap-4 mt-4 text-sm text-slate-600">
+              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
+                <Gauge size={15} />{listing.Mileage.toLocaleString()} km
+              </span>
+              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
+                <Calendar size={15} />{listing.ManufacturingYear}
+              </span>
+              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
+                <Zap size={15} />{listing.HorsePower} CP
+              </span>
             </div>
 
             {listing.Description && (
-              <div className="mt-4">
-                <h3 className="font-semibold text-slate-900 mb-2">Description</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{listing.Description}</p>
+              <div className="mt-5 pt-5 border-t border-slate-100">
+                <h3 className="font-semibold text-slate-900 mb-2">Descriere</h3>
+                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{listing.Description}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Right: Actions */}
         <div className="space-y-4">
-          {!isSeller && isActive && user && (
+          {/* Buyer actions */}
+          {!isSeller && user && isActive && (
             <>
-              <div className="bg-white border border-slate-200 rounded-xl p-4">
-                <h3 className="font-semibold text-slate-900 mb-3">Make an offer</h3>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="Amount (€)"
-                    value={offerAmount}
-                    onChange={e => setOfferAmount(e.target.value)}
-                    className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                  <button onClick={handleOffer} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-                    Send
-                  </button>
-                </div>
+              {/* Offer section */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5">
+                {myOffer ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-slate-900">Oferta ta</h3>
+                      <StatusBadge status={myOffer.OfferStatus} />
+                    </div>
+                    <div className="text-xl font-bold text-blue-600 mb-2">
+                      €{Number(myOffer.OfferedAmount).toLocaleString()}
+                    </div>
+
+                    {myOffer.OfferStatus === 'Countered' && myOffer.CounterAmount && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-3">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-purple-800">
+                              Vânzătorul a contraoferit: <strong>€{Number(myOffer.CounterAmount).toLocaleString()}</strong>
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => acceptCounter(myOffer.OfferID).then(o => setMyOffer(o))}
+                                className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700"
+                              >
+                                Acceptă €{Number(myOffer.CounterAmount).toLocaleString()}
+                              </button>
+                              <button
+                                onClick={() => rejectCounter(myOffer.OfferID).then(o => setMyOffer(o))}
+                                className="text-xs border border-red-300 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50"
+                              >
+                                Refuză
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {myOffer.OfferStatus === 'Rejected' && (
+                      <div>
+                        <p className="text-sm text-slate-500 mb-3">Fă o nouă ofertă:</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            placeholder="Suma (€)"
+                            value={offerAmount}
+                            onChange={e => setOfferAmount(e.target.value)}
+                            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                          />
+                          <button
+                            onClick={handleOffer}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+                          >
+                            Trimite
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="font-semibold text-slate-900 mb-3">Fă o ofertă</h3>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Suma (€)"
+                        min="1"
+                        value={offerAmount}
+                        onChange={e => { setOfferAmount(e.target.value); setOfferError('') }}
+                        onKeyDown={e => { if (e.key === 'Enter') handleOffer() }}
+                        className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${offerError ? 'border-red-400' : 'border-slate-300'}`}
+                      />
+                      <button
+                        onClick={handleOffer}
+                        disabled={offerLoading}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {offerLoading ? '...' : 'Trimite'}
+                      </button>
+                    </div>
+                    {offerError && <p className="text-xs text-red-500 mt-1">{offerError}</p>}
+                    <p className="text-xs text-slate-400 mt-2">Prețul de pornire: €{Number(listing.Price).toLocaleString()}</p>
+                  </>
+                )}
               </div>
 
               <button
                 onClick={handleMessage}
-                className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800"
+                className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors"
               >
-                <MessageSquare size={18} /> Send message
+                <MessageSquare size={18} /> Trimite mesaj
               </button>
 
               <button
                 onClick={toggleFav}
-                className="w-full flex items-center justify-center gap-2 border border-slate-300 py-3 rounded-xl font-medium hover:bg-slate-50"
+                className="w-full flex items-center justify-center gap-2 border border-slate-300 py-3 rounded-xl font-medium hover:bg-slate-50 transition-colors"
               >
                 <Heart size={18} className={fav ? 'fill-red-500 text-red-500' : ''} />
-                {fav ? 'Remove from favorites' : 'Save to favorites'}
+                {fav ? 'Elimină din favorite' : 'Salvează la favorite'}
               </button>
             </>
           )}
 
-          {/* Seller actions */}
-          {isSeller && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-              <h3 className="font-semibold text-slate-900">Manage listing</h3>
-              <button
-                onClick={() => navigate(`/listings/${listing.ListingID}/edit`)}
-                className="w-full border border-slate-300 py-2 rounded-lg text-sm hover:bg-slate-50"
-              >
-                Edit listing
-              </button>
-              {isActive && (
-                <button
-                  onClick={() => setShowSoldModal(true)}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700"
-                >
-                  <CheckCircle size={16} /> Mark as sold
-                </button>
-              )}
-              <button
-                onClick={handleDelete}
-                className="w-full flex items-center justify-center gap-2 text-red-600 border border-red-200 py-2 rounded-lg text-sm hover:bg-red-50"
-              >
-                <Trash2 size={16} /> Delete
+          {/* Not logged in */}
+          {!user && isActive && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5 text-center">
+              <p className="text-slate-600 text-sm mb-3">Autentifică-te pentru a face o ofertă sau a trimite un mesaj</p>
+              <button onClick={() => navigate('/login')} className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                Conectează-te
               </button>
             </div>
           )}
 
-          {/* Offers for seller */}
+          {/* Seller management */}
+          {isSeller && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+              <h3 className="font-semibold text-slate-900">Gestionează anunțul</h3>
+              <button
+                onClick={() => navigate(`/listings/${listing.ListingID}/edit`)}
+                className="w-full flex items-center justify-between border border-slate-300 px-4 py-2.5 rounded-lg text-sm hover:bg-slate-50"
+              >
+                <span>Editează anunțul</span>
+                <ChevronRight size={16} className="text-slate-400" />
+              </button>
+              {isActive && (
+                <button
+                  onClick={() => setShowSoldModal(true)}
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700"
+                >
+                  <CheckCircle size={16} /> Marchează ca Vândut
+                </button>
+              )}
+              <button
+                onClick={handleDelete}
+                className="w-full flex items-center justify-center gap-2 text-red-600 border border-red-200 py-2.5 rounded-lg text-sm hover:bg-red-50"
+              >
+                <Trash2 size={16} /> Șterge anunțul
+              </button>
+            </div>
+          )}
+
+          {/* Offers panel for seller */}
           {isSeller && offers.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h3 className="font-semibold text-slate-900 mb-3">Offers ({offers.length})</h3>
-              <div className="space-y-2">
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <h3 className="font-semibold text-slate-900 mb-4">Oferte primite ({offers.length})</h3>
+              <div className="space-y-3">
                 {offers.map(o => (
-                  <div key={o.OfferID} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-blue-600">€{Number(o.OfferedAmount).toLocaleString()}</span>
-                    {o.IsAccepted ? (
-                      <span className="text-green-600 text-xs">Accepted</span>
-                    ) : (
-                      <button
-                        onClick={() => acceptOffer(o.OfferID).then(() => getListingOffers(listing.ListingID).then(setOffers))}
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Accept
-                      </button>
+                  <div key={o.OfferID} className="border border-slate-100 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-blue-600 text-lg">
+                        €{Number(o.OfferedAmount).toLocaleString()}
+                      </span>
+                      <StatusBadge status={o.OfferStatus} />
+                    </div>
+
+                    {o.OfferStatus === 'Pending' && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => acceptOffer(o.OfferID).then(refreshOffers)}
+                            className="flex-1 text-xs bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700"
+                          >
+                            Acceptă
+                          </button>
+                          <button
+                            onClick={() => rejectOffer(o.OfferID).then(refreshOffers)}
+                            className="flex-1 text-xs border border-red-300 text-red-600 py-1.5 rounded-lg hover:bg-red-50"
+                          >
+                            Refuză
+                          </button>
+                        </div>
+                        {showCounterInput === o.OfferID ? (
+                          <div className="flex gap-2 mt-1">
+                            <input
+                              type="number"
+                              placeholder="Contraofertă (€)"
+                              value={counterInput[o.OfferID] ?? ''}
+                              onChange={e => setCounterInput(p => ({ ...p, [o.OfferID]: e.target.value }))}
+                              className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-xs"
+                            />
+                            <button
+                              onClick={async () => {
+                                await counterOffer(o.OfferID, Number(counterInput[o.OfferID]))
+                                setShowCounterInput(null)
+                                refreshOffers()
+                              }}
+                              className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700"
+                            >
+                              Trimite
+                            </button>
+                            <button
+                              onClick={() => setShowCounterInput(null)}
+                              className="text-xs text-slate-500 px-2"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowCounterInput(o.OfferID)}
+                            className="text-xs text-purple-600 hover:underline text-center"
+                          >
+                            + Fă contraofertă
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {o.OfferStatus === 'Countered' && o.CounterAmount && (
+                      <p className="text-xs text-slate-500">
+                        Contraoferta ta: €{Number(o.CounterAmount).toLocaleString()} — în așteptare
+                      </p>
                     )}
                   </div>
                 ))}
@@ -218,32 +423,55 @@ export default function ListingDetailPage() {
             </div>
           )}
 
-          {isAdmin && !isSeller && (
-            <button onClick={handleDelete} className="w-full flex items-center justify-center gap-2 text-red-600 border border-red-200 py-2 rounded-xl text-sm hover:bg-red-50">
-              <Trash2 size={16} /> Admin: Remove
-            </button>
-          )}
+          {/* Report & Admin */}
+          <div className="flex gap-2">
+            {user && !isSeller && (
+              <button
+                onClick={() => setShowReport(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 text-slate-500 border border-slate-200 py-2 rounded-xl text-sm hover:bg-slate-50"
+              >
+                <Flag size={15} /> Raportează
+              </button>
+            )}
+            {isAdmin && !isSeller && (
+              <button
+                onClick={handleDelete}
+                className="flex-1 flex items-center justify-center gap-1.5 text-red-600 border border-red-200 py-2 rounded-xl text-sm hover:bg-red-50"
+              >
+                <Trash2 size={15} /> Admin: Șterge
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Mark sold modal */}
       {showSoldModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-80">
-            <h3 className="font-bold text-slate-900 mb-3">Mark as sold</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+            <h3 className="font-bold text-slate-900 mb-1">Marchează ca Vândut</h3>
+            <p className="text-sm text-slate-500 mb-4">Anunțul va fi ascuns din căutare și nu va mai primi oferte.</p>
             <input
               type="number"
-              placeholder="Final selling price (optional)"
+              placeholder="Prețul final de vânzare (opțional)"
               value={soldPrice}
               onChange={e => setSoldPrice(e.target.value)}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-4"
             />
             <div className="flex gap-2">
-              <button onClick={handleMarkSold} className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm">Confirm</button>
-              <button onClick={() => setShowSoldModal(false)} className="flex-1 border border-slate-300 py-2 rounded-lg text-sm">Cancel</button>
+              <button onClick={handleMarkSold} className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium">
+                Confirmă
+              </button>
+              <button onClick={() => setShowSoldModal(false)} className="flex-1 border border-slate-300 py-2 rounded-lg text-sm">
+                Anulează
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {showReport && (
+        <ReportModal listingId={listing.ListingID} onClose={() => setShowReport(false)} />
       )}
     </div>
   )

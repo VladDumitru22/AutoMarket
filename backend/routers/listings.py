@@ -18,7 +18,7 @@ def get_brands(db: Session = Depends(get_db)):
 
 @router.get("/models", response_model=List[CarModelOut])
 def get_models(brand_id: Optional[int] = None, db: Session = Depends(get_db)):
-    q = db.query(CarModel)
+    q = db.query(CarModel).options(joinedload(CarModel.brand))
     if brand_id:
         q = q.filter(CarModel.BrandID == brand_id)
     return q.all()
@@ -37,7 +37,7 @@ def search_listings(
 ):
     q = (
         db.query(Listing)
-        .options(joinedload(Listing.images), joinedload(Listing.model))
+        .options(joinedload(Listing.images), joinedload(Listing.model).joinedload(CarModel.brand))
         .join(Listing.status)
         .filter(Listing.status.has(StatusName="Active"))
     )
@@ -63,19 +63,23 @@ def my_listings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return (
+    from models.listing import ListingStatus
+    removed = db.query(ListingStatus).filter(ListingStatus.StatusName == "Removed").first()
+    q = (
         db.query(Listing)
-        .options(joinedload(Listing.images), joinedload(Listing.model))
+        .options(joinedload(Listing.images), joinedload(Listing.model).joinedload(CarModel.brand))
         .filter(Listing.SellerID == current_user.UserID)
-        .all()
     )
+    if removed:
+        q = q.filter(Listing.StatusID != removed.StatusID)
+    return q.all()
 
 
 @router.get("/{listing_id}", response_model=ListingOut)
 def get_listing(listing_id: int, db: Session = Depends(get_db)):
     listing = (
         db.query(Listing)
-        .options(joinedload(Listing.images), joinedload(Listing.model))
+        .options(joinedload(Listing.images), joinedload(Listing.model).joinedload(CarModel.brand))
         .filter(Listing.ListingID == listing_id)
         .first()
     )
@@ -90,6 +94,8 @@ def create_listing(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.RoleID == 3:
+        raise HTTPException(status_code=403, detail="Administratorii nu pot posta anunțuri")
     from models.listing import ListingStatus
     active_status = db.query(ListingStatus).filter(ListingStatus.StatusName == "Active").first()
     listing = Listing(

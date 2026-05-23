@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional, List
 from decimal import Decimal
@@ -14,13 +14,14 @@ class CarModelOut(BaseModel):
     ModelID: int
     BrandID: int
     Name: str
+    brand: Optional[BrandOut] = None
     model_config = {"from_attributes": True}
 
 
 class ListingImageOut(BaseModel):
     ImageID: int
     ImageURL: str
-    IsPrimary: Optional[bool]
+    IsPrimary: Optional[int]
     model_config = {"from_attributes": True}
 
 
@@ -32,6 +33,35 @@ class ListingCreate(BaseModel):
     horse_power: int
     description: Optional[str] = None
     image_urls: Optional[List[str]] = []
+    primary_image_index: Optional[int] = 0
+
+    @field_validator("price")
+    @classmethod
+    def price_positive(cls, v: Decimal) -> Decimal:
+        if v <= 0:
+            raise ValueError("Prețul trebuie să fie pozitiv")
+        return v
+
+    @field_validator("mileage")
+    @classmethod
+    def mileage_non_negative(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("Kilometrajul nu poate fi negativ")
+        return v
+
+    @field_validator("horse_power")
+    @classmethod
+    def hp_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("Puterea trebuie să fie pozitivă")
+        return v
+
+    @field_validator("manufacturing_year")
+    @classmethod
+    def year_valid(cls, v: int) -> int:
+        if v < 1900 or v > 2026:
+            raise ValueError("An de fabricație invalid")
+        return v
 
 
 class ListingUpdate(BaseModel):
@@ -40,6 +70,13 @@ class ListingUpdate(BaseModel):
     mileage: Optional[int] = None
     horse_power: Optional[int] = None
     manufacturing_year: Optional[int] = None
+
+    @field_validator("price")
+    @classmethod
+    def price_positive(cls, v: Optional[Decimal]) -> Optional[Decimal]:
+        if v is not None and v <= 0:
+            raise ValueError("Prețul trebuie să fie pozitiv")
+        return v
 
 
 class ListingOut(BaseModel):
