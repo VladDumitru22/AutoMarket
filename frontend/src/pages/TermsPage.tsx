@@ -5,18 +5,20 @@ export default function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="flex items-center gap-3 mb-8">
-        <FileText size={24} className="text-blue-600" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-lg shadow-orange-500/25 flex-shrink-0">
+          <FileText size={20} className="text-white" />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Terms and Conditions</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Last updated: May 2025 · AutoMarket SRL</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Terms and Conditions</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Last updated: May 2025 · AutoMarket SRL</p>
         </div>
       </div>
 
-      <div className="prose prose-slate max-w-none space-y-8">
+      <div className="space-y-4">
 
         <Section title="1. About AutoMarket">
           <p>
-            AutoMarket is an online marketplace platform operated by <strong>AutoMarket SRL</strong>, a company registered
+            AutoMarket is an online marketplace platform operated by <strong className="text-slate-800 dark:text-slate-200">AutoMarket SRL</strong>, a company registered
             in Romania, that facilitates the buying and selling of motor vehicles between private individuals and dealers.
             AutoMarket acts solely as an intermediary and is not a party to any transaction between buyers and sellers.
           </p>
@@ -103,8 +105,8 @@ export default function TermsPage() {
           </p>
           <p>The personal data we collect includes:</p>
           <ul>
-            <li><strong>Account data</strong>: name, email address.</li>
-            <li><strong>Usage data</strong>: listings posted, messages sent, offers placed.</li>
+            <li><strong className="text-slate-800 dark:text-slate-200">Account data</strong>: name, email address.</li>
+            <li><strong className="text-slate-800 dark:text-slate-200">Usage data</strong>: listings posted, messages sent, offers placed.</li>
           </ul>
           <p>Your data is used to:</p>
           <ul>
@@ -114,9 +116,9 @@ export default function TermsPage() {
           </ul>
           <p>
             You have the right to access, rectify, erase, restrict processing of, and port your personal data at any time
-            by contacting us at <strong>privacy@automarket.ro</strong>. You also have the right to lodge a complaint with
-            the <strong>Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP)</strong>{' '}
-            at <a href="https://www.dataprotection.ro" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.dataprotection.ro</a>.
+            by contacting us at <strong className="text-slate-800 dark:text-slate-200">privacy@automarket.ro</strong>. You also have the right to lodge a complaint with
+            the <strong className="text-slate-800 dark:text-slate-200">Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP)</strong>{' '}
+            at <a href="https://www.dataprotection.ro" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 hover:underline transition-colors">www.dataprotection.ro</a>.
           </p>
           <p>
             We do not sell your personal data to third parties. Data may be shared with Cloudinary (image hosting) and
@@ -147,9 +149,9 @@ export default function TermsPage() {
             connection with these Terms shall first be subject to good-faith negotiation between the parties.
           </p>
           <p>
-            Unresolved disputes may be submitted to the <strong>Autoritatea Națională pentru Protecția Consumatorilor (ANPC)</strong>{' '}
+            Unresolved disputes may be submitted to the <strong className="text-slate-800 dark:text-slate-200">Autoritatea Națională pentru Protecția Consumatorilor (ANPC)</strong>{' '}
             or to the competent Romanian courts. Consumers may also use the EU Online Dispute Resolution platform at{' '}
-            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 hover:underline transition-colors">
               ec.europa.eu/consumers/odr
             </a>.
           </p>
@@ -166,15 +168,20 @@ export default function TermsPage() {
         <Section title="11. Contact">
           <p>For any questions regarding these Terms, please contact us:</p>
           <ul>
-            <li><strong>Email:</strong> legal@automarket.ro</li>
-            <li><strong>Consumer complaints (ANPC):</strong> <a href="https://anpc.ro" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">anpc.ro</a></li>
+            <li><strong className="text-slate-800 dark:text-slate-200">Email:</strong> legal@automarket.ro</li>
+            <li>
+              <strong className="text-slate-800 dark:text-slate-200">Consumer complaints (ANPC):</strong>{' '}
+              <a href="https://anpc.ro" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 hover:underline transition-colors">anpc.ro</a>
+            </li>
           </ul>
         </Section>
 
       </div>
 
-      <div className="mt-10 pt-6 border-t border-slate-200 text-center">
-        <Link to="/" className="text-sm text-blue-600 hover:underline">← Back to listings</Link>
+      <div className="mt-10 pt-6 border-t border-slate-200 dark:border-white/[0.06] text-center">
+        <Link to="/" className="text-sm text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 hover:underline transition-colors">
+          ← Back to listings
+        </Link>
       </div>
     </div>
   )
@@ -182,9 +189,11 @@ export default function TermsPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h2 className="text-base font-bold text-slate-900 mb-3 pb-2 border-b border-slate-100">{title}</h2>
-      <div className="text-sm text-slate-600 leading-relaxed space-y-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
+    <section className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/20 p-6">
+      <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 pb-2 border-b border-slate-100 dark:border-white/[0.06]">
+        {title}
+      </h2>
+      <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed space-y-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
         {children}
       </div>
     </section>

@@ -13,6 +13,10 @@ interface ImageSlot {
   isPrimary: boolean
 }
 
+const inputCls = "w-full bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/40 dark:focus:ring-orange-400/40 transition-all"
+const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5"
+const panelCls = "bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/20 p-6"
+
 export default function CreateListingPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -52,6 +56,9 @@ export default function CreateListingPage() {
         horse_power: String(listing.HorsePower),
         description: listing.Description ?? '',
       })
+      if (listing.model?.BrandID) {
+        setBrandId(String(listing.model.BrandID))
+      }
       const existingImages: ImageSlot[] = listing.images.map((img, i) => ({
         preview: img.ImageURL,
         uploaded: img.ImageURL,
@@ -97,7 +104,7 @@ export default function CreateListingPage() {
     setImages(prev => prev.map((img, i) => ({ ...img, isPrimary: i === index })))
   }
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!form.price || !form.model_id) { setError('Price and model are required'); return }
     if (Number(form.price) <= 0) { setError('Price must be positive'); return }
@@ -123,9 +130,7 @@ export default function CreateListingPage() {
 
       let urlIndex = 0
       const finalImages: { url: string; isPrimary: boolean }[] = images.map(img => {
-        if (img.file) {
-          return { url: uploadedUrls[urlIndex++], isPrimary: img.isPrimary }
-        }
+        if (img.file) return { url: uploadedUrls[urlIndex++], isPrimary: img.isPrimary }
         return { url: img.uploaded!, isPrimary: img.isPrimary }
       })
 
@@ -166,42 +171,39 @@ export default function CreateListingPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
         {isEdit ? 'Edit listing' : 'New listing'}
       </h1>
 
-      <form onSubmit={submit} className="space-y-6">
-        {/* Images */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <h2 className="font-semibold text-slate-900 mb-1">Photos</h2>
-          <p className="text-xs text-slate-500 mb-4">Up to 5 photos · Click the star to set the cover photo</p>
+      <form onSubmit={submit} className="space-y-5">
+        {/* Photos */}
+        <div className={panelCls}>
+          <h2 className="font-semibold text-slate-900 dark:text-slate-100 mb-0.5">Photos</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Up to 5 photos · Click the star to set the cover photo</p>
 
           <div className="flex gap-3 flex-wrap">
             {images.map((img, i) => (
-              <div key={i} className={`relative w-28 h-24 rounded-xl overflow-hidden border-2 ${img.isPrimary ? 'border-blue-500' : 'border-slate-200'}`}>
+              <div
+                key={i}
+                className={`relative w-28 h-24 rounded-xl overflow-hidden border-2 transition-all ${
+                  img.isPrimary
+                    ? 'border-orange-500 shadow-lg shadow-orange-500/20'
+                    : 'border-slate-200 dark:border-white/10'
+                }`}
+              >
                 <img src={img.preview} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center gap-1 opacity-0 hover:opacity-100">
-                  <button
-                    type="button"
-                    onClick={() => setPrimary(i)}
-                    className="p-1 bg-white/90 rounded-full"
-                    title="Set as cover"
-                  >
+                <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center gap-1 opacity-0 hover:opacity-100">
+                  <button type="button" onClick={() => setPrimary(i)} className="p-1.5 bg-white/90 rounded-full shadow" title="Set as cover">
                     {img.isPrimary
-                      ? <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                      : <StarOff size={14} className="text-slate-600" />
-                    }
+                      ? <Star size={13} className="fill-orange-400 text-orange-400" />
+                      : <StarOff size={13} className="text-slate-600" />}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="p-1 bg-white/90 rounded-full"
-                  >
-                    <X size={14} className="text-red-500" />
+                  <button type="button" onClick={() => removeImage(i)} className="p-1.5 bg-white/90 rounded-full shadow">
+                    <X size={13} className="text-red-500" />
                   </button>
                 </div>
                 {img.isPrimary && (
-                  <span className="absolute bottom-0 left-0 right-0 bg-blue-500 text-white text-[10px] text-center py-0.5">
+                  <span className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[9px] font-bold text-center py-0.5 tracking-wide uppercase">
                     Cover
                   </span>
                 )}
@@ -212,7 +214,7 @@ export default function CreateListingPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-28 h-24 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-blue-500 transition-colors"
+                className="w-28 h-24 rounded-xl border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-orange-400 dark:hover:border-orange-400/60 hover:bg-orange-50 dark:hover:bg-orange-500/5 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:text-orange-500 transition-all"
               >
                 <ImagePlus size={20} />
                 <span className="text-xs">Add photo</span>
@@ -230,36 +232,36 @@ export default function CreateListingPage() {
           />
 
           {uploading && (
-            <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+            <p className="text-xs text-orange-500 mt-2 flex items-center gap-1.5">
               <Upload size={12} /> Uploading images…
             </p>
           )}
         </div>
 
-        {/* Car details */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-          <h2 className="font-semibold text-slate-900">Vehicle details</h2>
+        {/* Vehicle details */}
+        <div className={panelCls}>
+          <h2 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">Vehicle details</h2>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Brand</label>
+              <label className={labelCls}>Brand</label>
               <select
                 value={brandId}
                 onChange={e => { setBrandId(e.target.value); setForm({ ...form, model_id: '' }) }}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                className={inputCls}
               >
                 <option value="">Select brand</option>
                 {brands.map(b => <option key={b.BrandID} value={b.BrandID}>{b.Name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Model *</label>
+              <label className={labelCls}>Model *</label>
               <select
                 value={form.model_id}
                 onChange={e => setForm({ ...form, model_id: e.target.value })}
                 required
                 disabled={!brandId}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
+                className={`${inputCls} disabled:opacity-50`}
               >
                 <option value="">Select model</option>
                 {models.map(m => <option key={m.ModelID} value={m.ModelID}>{m.Name}</option>)}
@@ -267,73 +269,61 @@ export default function CreateListingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Year *</label>
+              <label className={labelCls}>Year *</label>
               <input
-                type="number"
-                required
-                placeholder="2020"
-                min="1900"
-                max="2026"
+                type="number" required placeholder="2020"
+                min="1900" max="2026"
                 value={form.manufacturing_year}
                 onChange={e => setForm({ ...form, manufacturing_year: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                className={inputCls}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Price (€) *</label>
+              <label className={labelCls}>Price (€) *</label>
               <input
-                type="number"
-                required
-                min="1"
-                placeholder="15000"
+                type="number" required min="1" placeholder="15000"
                 value={form.price}
                 onChange={e => setForm({ ...form, price: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                className={inputCls}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mileage (km) *</label>
+              <label className={labelCls}>Mileage (km) *</label>
               <input
-                type="number"
-                required
-                min="0"
-                placeholder="50000"
+                type="number" required min="0" placeholder="50000"
                 value={form.mileage}
                 onChange={e => setForm({ ...form, mileage: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                className={inputCls}
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Power (HP) *</label>
+          <div className="mb-4">
+            <label className={labelCls}>Power (HP) *</label>
             <input
-              type="number"
-              required
-              min="1"
-              placeholder="150"
+              type="number" required min="1" placeholder="150"
               value={form.horse_power}
               onChange={e => setForm({ ...form, horse_power: e.target.value })}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              className={inputCls}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+            <label className={labelCls}>Description</label>
             <textarea
               rows={4}
               value={form.description}
               onChange={e => setForm({ ...form, description: e.target.value })}
               placeholder="Describe the car's condition, features, service history…"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none"
+              className={`${inputCls} resize-none`}
             />
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-700 text-sm">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3 text-red-600 dark:text-red-400 text-sm">
             {error}
           </div>
         )}
@@ -342,14 +332,14 @@ export default function CreateListingPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white py-3 rounded-xl font-medium shadow-lg shadow-orange-500/25 transition-all duration-200 disabled:opacity-50"
           >
             {loading ? (uploading ? 'Uploading images…' : 'Saving…') : (isEdit ? 'Save changes' : 'Publish listing')}
           </button>
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="px-6 py-3 border border-slate-300 rounded-xl font-medium hover:bg-slate-50"
+            className="px-6 py-3 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors"
           >
             Cancel
           </button>

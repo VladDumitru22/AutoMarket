@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 * {
   box-sizing: border-box;
@@ -6,7 +7,31 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+@keyframes blob-drift-1 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  25%       { transform: translate(32px, -42px) scale(1.06); }
+  50%       { transform: translate(-22px, 22px) scale(0.94); }
+  75%       { transform: translate(12px, 32px) scale(1.04); }
+}
+
+@keyframes blob-drift-2 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33%       { transform: translate(-38px, 28px) scale(1.09); }
+  67%       { transform: translate(30px, -20px) scale(0.91); }
+}
+
+@keyframes blob-drift-3 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  40%       { transform: translate(24px, 38px) scale(0.96); }
+  75%       { transform: translate(-30px, -14px) scale(1.07); }
+}
+
+.blob-1 { animation: blob-drift-1 22s ease-in-out infinite; }
+.blob-2 { animation: blob-drift-2 28s ease-in-out infinite; }
+.blob-3 { animation: blob-drift-3 20s ease-in-out infinite; }
+.blob-4 { animation: blob-drift-1 26s ease-in-out infinite reverse; }

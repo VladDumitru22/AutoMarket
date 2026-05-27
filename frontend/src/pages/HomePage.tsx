@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { getBrands, getModels, searchListings } from '../api/listings'
 import type { Brand, CarModel, Listing } from '../api/listings'
 import { getFavoriteIds } from '../api/favorites'
 import ListingCard from '../components/ListingCard'
 import { useAuth } from '../context/AuthContext'
+
+const inputCls = "bg-white/80 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/40 dark:focus:ring-orange-400/40 transition-all w-full"
 
 export default function HomePage() {
   const { user } = useAuth()
@@ -76,24 +78,32 @@ export default function HomePage() {
     })
   }
 
+  const hasFilters = Object.values(filters).some(v => v !== '')
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Find your car</h1>
-        <p className="text-slate-500">Search thousands of verified listings</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-1">
+          Find your{' '}
+          <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">
+            perfect car
+          </span>
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400">Search thousands of verified listings</p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 mb-8">
-        <div className="flex items-center gap-2 mb-4 text-slate-700 font-medium text-sm">
-          <SlidersHorizontal size={16} />
+      <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl p-5 mb-8 shadow-xl shadow-black/5 dark:shadow-black/25">
+        <div className="flex items-center gap-2 mb-4 text-slate-700 dark:text-slate-300 font-medium text-sm">
+          <SlidersHorizontal size={15} className="text-orange-500" />
           Search filters
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-3">
           <select
             value={filters.brand_id}
             onChange={e => setFilters({ ...filters, brand_id: e.target.value, model_id: '' })}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+            className={inputCls}
           >
             <option value="">All brands</option>
             {brands.map(b => <option key={b.BrandID} value={b.BrandID}>{b.Name}</option>)}
@@ -103,7 +113,7 @@ export default function HomePage() {
             value={filters.model_id}
             onChange={e => setFilters({ ...filters, model_id: e.target.value })}
             disabled={!filters.brand_id}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
+            className={`${inputCls} disabled:opacity-50`}
           >
             <option value="">All models</option>
             {models.map(m => <option key={m.ModelID} value={m.ModelID}>{m.Name}</option>)}
@@ -115,7 +125,7 @@ export default function HomePage() {
             onChange={e => setFilters({ ...filters, min_price: e.target.value })}
             type="number"
             min="0"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className={inputCls}
           />
 
           <input
@@ -124,7 +134,7 @@ export default function HomePage() {
             onChange={e => setFilters({ ...filters, max_price: e.target.value })}
             type="number"
             min="0"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className={inputCls}
           />
 
           <input
@@ -134,7 +144,7 @@ export default function HomePage() {
             type="number"
             min="1900"
             max="2026"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className={inputCls}
           />
 
           <input
@@ -144,37 +154,39 @@ export default function HomePage() {
             type="number"
             min="1900"
             max="2026"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            className={inputCls}
           />
 
           <input
-            placeholder="Keyword..."
+            placeholder="Keyword…"
             value={filters.keyword}
             onChange={e => setFilters({ ...filters, keyword: e.target.value })}
             onKeyDown={e => { if (e.key === 'Enter') fetchListings() }}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm col-span-2"
+            className={`${inputCls} col-span-2`}
           />
         </div>
 
         <div className="flex gap-2">
           <button
             onClick={fetchListings}
-            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+            className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 transition-all duration-200"
           >
-            <Search size={16} /> Search
+            <Search size={15} /> Search
           </button>
-          <button
-            onClick={reset}
-            className="px-5 py-2 rounded-lg text-sm font-medium border border-slate-300 hover:bg-slate-50"
-          >
-            Reset
-          </button>
+          {hasFilters && (
+            <button
+              onClick={reset}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors"
+            >
+              <X size={14} /> Reset
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Results */}
+      {/* Results count */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm text-slate-500">
+        <span className="text-sm text-slate-500 dark:text-slate-400">
           {loading ? 'Searching…' : `${listings.length} listing${listings.length !== 1 ? 's' : ''} found`}
         </span>
       </div>
@@ -182,21 +194,25 @@ export default function HomePage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-pulse">
-              <div className="h-48 bg-slate-200" />
-              <div className="p-4 space-y-2">
-                <div className="h-4 bg-slate-200 rounded w-3/4" />
-                <div className="h-5 bg-slate-200 rounded w-1/2" />
-                <div className="h-3 bg-slate-200 rounded w-full" />
+            <div key={i} className="bg-white/60 dark:bg-slate-900/50 rounded-2xl border border-white/60 dark:border-white/10 overflow-hidden animate-pulse">
+              <div className="h-48 bg-slate-200 dark:bg-slate-800" />
+              <div className="p-4 space-y-2.5">
+                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-lg w-3/4" />
+                <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded-lg w-1/2" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-lg w-full" />
               </div>
             </div>
           ))}
         </div>
       ) : listings.length === 0 ? (
-        <div className="text-center text-slate-500 py-16 bg-white rounded-xl border border-slate-200">
-          <p className="text-lg font-medium">No listings found</p>
-          <p className="text-sm mt-1">Try resetting the filters</p>
-          <button onClick={reset} className="mt-4 text-blue-600 text-sm hover:underline">
+        <div className="text-center text-slate-500 dark:text-slate-400 py-20 bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-white/10 shadow-xl shadow-black/5">
+          <Search size={40} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+          <p className="text-lg font-medium text-slate-700 dark:text-slate-300">No listings found</p>
+          <p className="text-sm mt-1">Try adjusting your filters</p>
+          <button
+            onClick={reset}
+            className="mt-4 text-orange-500 dark:text-orange-400 text-sm hover:underline"
+          >
             Reset filters
           </button>
         </div>

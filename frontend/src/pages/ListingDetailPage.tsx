@@ -8,7 +8,7 @@ import {
 } from '../api/offers'
 import type { Offer } from '../api/offers'
 import { startConversation } from '../api/conversations'
-import { addFavorite, removeFavorite } from '../api/favorites'
+import { addFavorite, removeFavorite, getFavoriteIds } from '../api/favorites'
 import { useAuth } from '../context/AuthContext'
 import {
   Heart, MessageSquare, Gauge, Calendar, Zap, Trash2, CheckCircle,
@@ -18,17 +18,20 @@ import ReportModal from '../components/ReportModal'
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    Pending: 'bg-amber-100 text-amber-700',
-    Accepted: 'bg-green-100 text-green-700',
-    Rejected: 'bg-red-100 text-red-700',
-    Countered: 'bg-sky-100 text-sky-700',
+    Pending: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300',
+    Accepted: 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300',
+    Rejected: 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300',
+    Countered: 'bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300',
   }
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[status] ?? 'bg-slate-100 text-slate-600'}`}>
+    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${styles[status] ?? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
       {status}
     </span>
   )
 }
+
+const panelCls = "bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/20 p-5"
+const inputCls = "flex-1 bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/40 transition-all"
 
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -69,13 +72,16 @@ export default function ListingDetailPage() {
           setMyOffer(mine ?? null)
         })
         .catch(() => {})
+      getFavoriteIds()
+        .then(ids => setFav(ids.includes(listing.ListingID)))
+        .catch(() => {})
     }
   }, [listing, user])
 
   if (!listing) return (
-    <div className="max-w-6xl mx-auto px-4 py-20 text-center text-slate-500">
+    <div className="max-w-6xl mx-auto px-4 py-20">
       <div className="animate-pulse space-y-4">
-        <div className="h-80 bg-slate-200 rounded-xl" />
+        <div className="h-80 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
       </div>
     </div>
   )
@@ -127,16 +133,16 @@ export default function ListingDetailPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Images + Details */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-5">
           {/* Image gallery */}
           <div>
-            <div className="bg-slate-100 rounded-xl overflow-hidden h-80 mb-3">
+            <div className="rounded-2xl overflow-hidden h-80 mb-3 shadow-xl shadow-black/10 dark:shadow-black/30">
               {listing.images[activeImage] ? (
                 <img src={listing.images[activeImage].ImageURL} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="flex items-center justify-center h-full text-slate-400">No image</div>
+                <div className="flex items-center justify-center h-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600">No image</div>
               )}
             </div>
             {listing.images.length > 1 && (
@@ -145,8 +151,10 @@ export default function ListingDetailPage() {
                   <button
                     key={img.ImageID}
                     onClick={() => setActiveImage(i)}
-                    className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                      i === activeImage ? 'border-blue-500' : 'border-transparent'
+                    className={`flex-shrink-0 w-20 h-16 rounded-xl overflow-hidden border-2 transition-all ${
+                      i === activeImage
+                        ? 'border-orange-500 shadow-lg shadow-orange-500/20'
+                        : 'border-transparent opacity-70 hover:opacity-100'
                     }`}
                   >
                     <img src={img.ImageURL} alt="" className="w-full h-full object-cover" />
@@ -157,37 +165,37 @@ export default function ListingDetailPage() {
           </div>
 
           {/* Details card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <div className={panelCls}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {listing.model?.brand?.Name} {listing.model?.Name} {listing.ManufacturingYear}
                 </h1>
                 {!isActive && (
-                  <span className="inline-block mt-1 bg-red-100 text-red-700 text-sm px-3 py-1 rounded-full">Sold</span>
+                  <span className="inline-block mt-1 bg-gradient-to-r from-rose-500 to-red-500 text-white text-sm px-3 py-0.5 rounded-full shadow-sm">Sold</span>
                 )}
               </div>
-              <div className="text-2xl font-bold text-blue-600 whitespace-nowrap">
+              <div className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent whitespace-nowrap">
                 €{Number(listing.Price).toLocaleString()}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-4 mt-4 text-sm text-slate-600">
-              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
-                <Gauge size={15} />{listing.Mileage.toLocaleString()} km
-              </span>
-              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
-                <Calendar size={15} />{listing.ManufacturingYear}
-              </span>
-              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
-                <Zap size={15} />{listing.HorsePower} HP
-              </span>
+            <div className="flex flex-wrap gap-3 mt-4">
+              {[
+                { icon: <Gauge size={14} />, label: `${listing.Mileage.toLocaleString()} km` },
+                { icon: <Calendar size={14} />, label: listing.ManufacturingYear },
+                { icon: <Zap size={14} />, label: `${listing.HorsePower} HP` },
+              ].map(({ icon, label }) => (
+                <span key={String(label)} className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-white/[0.06]">
+                  <span className="text-orange-500">{icon}</span> {label}
+                </span>
+              ))}
             </div>
 
             {listing.Description && (
-              <div className="mt-5 pt-5 border-t border-slate-100">
-                <h3 className="font-semibold text-slate-900 mb-2">Description</h3>
-                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{listing.Description}</p>
+              <div className="mt-5 pt-5 border-t border-slate-100 dark:border-white/[0.06]">
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Description</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed whitespace-pre-line">{listing.Description}</p>
               </div>
             )}
           </div>
@@ -198,36 +206,35 @@ export default function ListingDetailPage() {
           {/* Buyer actions */}
           {!isSeller && !isAdmin && user && isActive && (
             <>
-              {/* Offer section */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className={panelCls}>
                 {myOffer ? (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-slate-900">Your offer</h3>
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">Your offer</h3>
                       <StatusBadge status={myOffer.OfferStatus} />
                     </div>
-                    <div className="text-xl font-bold text-blue-600 mb-2">
+                    <div className="text-xl font-bold bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent mb-2">
                       €{Number(myOffer.OfferedAmount).toLocaleString()}
                     </div>
 
                     {myOffer.OfferStatus === 'Countered' && myOffer.CounterAmount && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                      <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3 mt-3">
                         <div className="flex items-start gap-2">
-                          <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                          <AlertCircle size={15} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-sm font-medium text-amber-800">
-                              Seller counter-offered: <strong>€{Number(myOffer.CounterAmount).toLocaleString()}</strong>
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                              Counter offer: <strong>€{Number(myOffer.CounterAmount).toLocaleString()}</strong>
                             </p>
                             <div className="flex gap-2 mt-2">
                               <button
                                 onClick={() => acceptCounter(myOffer.OfferID).then(o => setMyOffer(o))}
-                                className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700"
+                                className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors"
                               >
-                                Accept €{Number(myOffer.CounterAmount).toLocaleString()}
+                                Accept
                               </button>
                               <button
                                 onClick={() => rejectCounter(myOffer.OfferID).then(o => setMyOffer(o))}
-                                className="text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50"
+                                className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                               >
                                 Decline
                               </button>
@@ -239,64 +246,51 @@ export default function ListingDetailPage() {
 
                     {myOffer.OfferStatus === 'Rejected' && (
                       <div>
-                        <p className="text-sm text-slate-500 mb-3">Place a new offer:</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">Place a new offer:</p>
                         <div className="flex gap-2">
-                          <input
-                            type="number"
-                            placeholder="Amount (€)"
-                            value={offerAmount}
-                            onChange={e => setOfferAmount(e.target.value)}
-                            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                          />
-                          <button
-                            onClick={handleOffer}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
-                          >
-                            Send
-                          </button>
+                          <input type="number" placeholder="Amount (€)" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className={inputCls} />
+                          <button onClick={handleOffer} className="bg-gradient-to-r from-orange-500 to-rose-500 text-white px-4 py-2 rounded-xl text-sm">Send</button>
                         </div>
                       </div>
                     )}
                   </div>
                 ) : (
                   <>
-                    <h3 className="font-semibold text-slate-900 mb-3">Make an offer</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">Make an offer</h3>
                     <div className="flex gap-2">
                       <input
-                        type="number"
-                        placeholder="Amount (€)"
-                        min="1"
+                        type="number" placeholder="Amount (€)" min="1"
                         value={offerAmount}
                         onChange={e => { setOfferAmount(e.target.value); setOfferError('') }}
                         onKeyDown={e => { if (e.key === 'Enter') handleOffer() }}
-                        className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${offerError ? 'border-red-400' : 'border-slate-300'}`}
+                        className={`${inputCls} ${offerError ? 'border-red-400 focus:ring-red-400/40' : ''}`}
                       />
                       <button
                         onClick={handleOffer}
                         disabled={offerLoading}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+                        className="bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white px-4 py-2 rounded-xl text-sm disabled:opacity-50 shadow-lg shadow-orange-500/20 transition-all whitespace-nowrap"
                       >
                         {offerLoading ? '…' : 'Send'}
                       </button>
                     </div>
                     {offerError && <p className="text-xs text-red-500 mt-1">{offerError}</p>}
-                    <p className="text-xs text-slate-400 mt-2">Asking price: €{Number(listing.Price).toLocaleString()}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Asking: €{Number(listing.Price).toLocaleString()}</p>
                   </>
                 )}
               </div>
 
               <button
                 onClick={handleMessage}
-                className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 py-3 rounded-xl font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors shadow-lg shadow-black/10"
               >
                 <MessageSquare size={18} /> Send message
               </button>
 
               <button
                 onClick={toggleFav}
-                className="w-full flex items-center justify-center gap-2 border border-slate-300 py-3 rounded-xl font-medium hover:bg-slate-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm border border-slate-200 dark:border-white/10 py-3 rounded-xl font-medium hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-300 transition-colors"
               >
-                <Heart size={18} className={fav ? 'fill-red-500 text-red-500' : ''} />
+                <Heart size={18} className={fav ? 'fill-rose-500 text-rose-500' : ''} />
                 {fav ? 'Remove from favorites' : 'Save to favorites'}
               </button>
             </>
@@ -304,9 +298,12 @@ export default function ListingDetailPage() {
 
           {/* Not logged in */}
           {!user && isActive && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5 text-center">
-              <p className="text-slate-600 text-sm mb-3">Sign in to make an offer or send a message</p>
-              <button onClick={() => navigate('/login')} className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            <div className={`${panelCls} text-center`}>
+              <p className="text-slate-600 dark:text-slate-400 text-sm mb-3">Sign in to make an offer or send a message</p>
+              <button
+                onClick={() => navigate('/login')}
+                className="bg-gradient-to-r from-orange-500 to-rose-500 text-white px-6 py-2 rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 hover:from-orange-600 hover:to-rose-600 transition-all"
+              >
                 Sign in
               </button>
             </div>
@@ -314,41 +311,43 @@ export default function ListingDetailPage() {
 
           {/* Seller management */}
           {isSeller && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
-              <h3 className="font-semibold text-slate-900">Manage listing</h3>
-              <button
-                onClick={() => navigate(`/listings/${listing.ListingID}/edit`)}
-                className="w-full flex items-center justify-between border border-slate-300 px-4 py-2.5 rounded-lg text-sm hover:bg-slate-50"
-              >
-                <span>Edit listing</span>
-                <ChevronRight size={16} className="text-slate-400" />
-              </button>
-              {isActive && (
+            <div className={panelCls}>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">Manage listing</h3>
+              <div className="space-y-2">
                 <button
-                  onClick={() => setShowSoldModal(true)}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700"
+                  onClick={() => navigate(`/listings/${listing.ListingID}/edit`)}
+                  className="w-full flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 px-4 py-2.5 rounded-xl text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
                 >
-                  <CheckCircle size={16} /> Mark as Sold
+                  <span>Edit listing</span>
+                  <ChevronRight size={15} className="text-slate-400" />
                 </button>
-              )}
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full flex items-center justify-center gap-2 text-red-600 border border-red-200 py-2.5 rounded-lg text-sm hover:bg-red-50"
-              >
-                <Trash2 size={16} /> Delete listing
-              </button>
+                {isActive && (
+                  <button
+                    onClick={() => setShowSoldModal(true)}
+                    className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
+                  >
+                    <CheckCircle size={15} /> Mark as Sold
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 py-2.5 rounded-xl text-sm hover:bg-red-50 dark:hover:bg-red-500/5 transition-colors"
+                >
+                  <Trash2 size={15} /> Delete listing
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Offers panel for seller */}
+          {/* Received offers (seller) */}
           {isSeller && offers.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h3 className="font-semibold text-slate-900 mb-4">Received offers ({offers.length})</h3>
+            <div className={panelCls}>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">Received offers ({offers.length})</h3>
               <div className="space-y-3">
                 {offers.map(o => (
-                  <div key={o.OfferID} className="border border-slate-100 rounded-lg p-3">
+                  <div key={o.OfferID} className="bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-white/[0.06] rounded-xl p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-blue-600 text-lg">
+                      <span className="font-bold text-lg bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent">
                         €{Number(o.OfferedAmount).toLocaleString()}
                       </span>
                       <StatusBadge status={o.OfferStatus} />
@@ -357,50 +356,25 @@ export default function ListingDetailPage() {
                     {o.OfferStatus === 'Pending' && (
                       <div className="flex flex-col gap-2">
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => acceptOffer(o.OfferID).then(refreshOffers)}
-                            className="flex-1 text-xs bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => rejectOffer(o.OfferID).then(refreshOffers)}
-                            className="flex-1 text-xs border border-red-300 text-red-600 py-1.5 rounded-lg hover:bg-red-50"
-                          >
-                            Decline
-                          </button>
+                          <button onClick={() => acceptOffer(o.OfferID).then(refreshOffers)} className="flex-1 text-xs bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg transition-colors">Accept</button>
+                          <button onClick={() => rejectOffer(o.OfferID).then(refreshOffers)} className="flex-1 text-xs border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/5 transition-colors">Decline</button>
                         </div>
                         {showCounterInput === o.OfferID ? (
                           <div className="flex gap-2 mt-1">
                             <input
-                              type="number"
-                              placeholder="Counter offer (€)"
+                              type="number" placeholder="Counter offer (€)"
                               value={counterInput[o.OfferID] ?? ''}
                               onChange={e => setCounterInput(p => ({ ...p, [o.OfferID]: e.target.value }))}
-                              className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-xs"
+                              className="flex-1 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                             />
                             <button
-                              onClick={async () => {
-                                await counterOffer(o.OfferID, Number(counterInput[o.OfferID]))
-                                setShowCounterInput(null)
-                                refreshOffers()
-                              }}
-                              className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-                            >
-                              Send
-                            </button>
-                            <button
-                              onClick={() => setShowCounterInput(null)}
-                              className="text-xs text-slate-500 px-2"
-                            >
-                              ×
-                            </button>
+                              onClick={async () => { await counterOffer(o.OfferID, Number(counterInput[o.OfferID])); setShowCounterInput(null); refreshOffers() }}
+                              className="text-xs bg-gradient-to-r from-orange-500 to-rose-500 text-white px-3 py-1.5 rounded-lg"
+                            >Send</button>
+                            <button onClick={() => setShowCounterInput(null)} className="text-xs text-slate-500 px-2">×</button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setShowCounterInput(o.OfferID)}
-                            className="text-xs text-blue-600 hover:underline text-center"
-                          >
+                          <button onClick={() => setShowCounterInput(o.OfferID)} className="text-xs text-orange-500 dark:text-orange-400 hover:underline text-center">
                             + Make counter offer
                           </button>
                         )}
@@ -408,9 +382,7 @@ export default function ListingDetailPage() {
                     )}
 
                     {o.OfferStatus === 'Countered' && o.CounterAmount && (
-                      <p className="text-xs text-slate-500">
-                        Your counter offer: €{Number(o.CounterAmount).toLocaleString()} — awaiting response
-                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Counter: €{Number(o.CounterAmount).toLocaleString()} — awaiting response</p>
                     )}
                   </div>
                 ))}
@@ -418,22 +390,22 @@ export default function ListingDetailPage() {
             </div>
           )}
 
-          {/* Report & Admin */}
+          {/* Report & Admin actions */}
           <div className="flex gap-2">
             {user && !isSeller && (
               <button
                 onClick={() => setShowReport(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 text-slate-500 border border-slate-200 py-2 rounded-xl text-sm hover:bg-slate-50"
+                className="flex-1 flex items-center justify-center gap-1.5 text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 py-2 rounded-xl text-sm hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors"
               >
-                <Flag size={15} /> Report
+                <Flag size={14} /> Report
               </button>
             )}
             {isAdmin && !isSeller && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 text-red-600 border border-red-200 py-2 rounded-xl text-sm hover:bg-red-50"
+                className="flex-1 flex items-center justify-center gap-1.5 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 py-2 rounded-xl text-sm hover:bg-red-50 dark:hover:bg-red-500/5 transition-colors"
               >
-                <Trash2 size={15} /> Admin: Delete
+                <Trash2 size={14} /> Admin: Delete
               </button>
             )}
           </div>
@@ -442,58 +414,44 @@ export default function ListingDetailPage() {
 
       {/* Mark sold modal */}
       {showSoldModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
-            <h3 className="font-bold text-slate-900 mb-1">Mark as Sold</h3>
-            <p className="text-sm text-slate-500 mb-4">The listing will be hidden from search and no longer accept offers.</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Mark as Sold</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">The listing will be hidden and no longer accept offers.</p>
             <input
               type="number"
               placeholder="Final selling price (optional)"
               value={soldPrice}
               onChange={e => setSoldPrice(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-4"
+              className="w-full bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/40 mb-4"
             />
             <div className="flex gap-2">
-              <button onClick={handleMarkSold} className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium">
-                Confirm
-              </button>
-              <button onClick={() => setShowSoldModal(false)} className="flex-1 border border-slate-300 py-2 rounded-lg text-sm">
-                Cancel
-              </button>
+              <button onClick={handleMarkSold} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">Confirm</button>
+              <button onClick={() => setShowSoldModal(false)} className="flex-1 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl text-sm hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors">Cancel</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Delete confirm modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Trash2 size={20} className="text-red-600" />
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <Trash2 size={20} className="text-red-600 dark:text-red-400" />
               </div>
-              <h3 className="font-bold text-slate-900">Delete listing?</h3>
+              <h3 className="font-bold text-slate-900 dark:text-slate-100">Delete listing?</h3>
             </div>
-            <p className="text-sm text-slate-500 mb-5">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
               This will permanently delete{' '}
-              <span className="font-medium text-slate-700">
+              <span className="font-medium text-slate-700 dark:text-slate-300">
                 {listing.model?.brand?.Name} {listing.model?.Name} {listing.ManufacturingYear}
-              </span>
-              . This action cannot be undone.
+              </span>. This action cannot be undone.
             </p>
             <div className="flex gap-2">
-              <button
-                onClick={handleDelete}
-                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Yes, delete it
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 border border-slate-300 py-2.5 rounded-lg text-sm hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
+              <button onClick={handleDelete} className="flex-1 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-red-500/20 transition-all">Yes, delete it</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl text-sm hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors">Cancel</button>
             </div>
           </div>
         </div>
